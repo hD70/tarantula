@@ -1,13 +1,14 @@
 {
   "name": "project-ai",
   "version": "1.0.0",
-  "description": "",
+  "description": "Tarantula - Multi-model AI orchestration system",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "HD",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
