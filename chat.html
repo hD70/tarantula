@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarantula</title>
+    <link rel="stylesheet" href="public/style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Tarantula</h1>
+            <p>Powered by 14 AI providers</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <!-- Messages will appear here -->
+        </div>
+        
+        <div class="chat-input-container">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Type your message..." 
+                onkeypress="handleKeyPress(event)"
+            >
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/chat';
+        
+        // Get or create session ID
+        let sessionId = localStorage.getItem('tarantulaSession');
+        if (!sessionId) {
+            sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('tarantulaSession', sessionId);
+        }
+        
+        console.log('Session ID:', sessionId);
+
+        function addMessage(content, isUser) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addLoadingIndicator() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai-message loading';
+            loadingDiv.id = 'loading';
+            loadingDiv.textContent = 'Thinking...';
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function removeLoadingIndicator() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.remove();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            
+            addLoadingIndicator();
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        messages: [{ role: 'user', content: message }],
+                        sessionId: sessionId
+                    })
+                });
+                
+                const data = await response.json();
+                removeLoadingIndicator();
+                
+                if (data.reply) {
+                    addMessage(data.reply, false);
+                    
+                    if (data.sessionId) {
+                        sessionId = data.sessionId;
+                        localStorage.setItem('tarantulaSession', sessionId);
+                    }
+                } else if (data.error) {
+                    addMessage('Error: ' + data.error, false);
+                }
+            } catch (error) {
+                removeLoadingIndicator();
+                addMessage('Error: Could not connect to server', false);
+                console.error(error);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Load conversation history when page loads
+        async function loadHistory() {
+            try {
+                const response = await fetch(`http://localhost:3000/history/${sessionId}`);
+                const data = await response.json();
+                
+                if (data.messages && data.messages.length > 0) {
+                    console.log('Loaded', data.messages.length, 'messages from history');
+                    data.messages.forEach(msg => {
+                        addMessage(msg.content, msg.role === 'user');
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        // Load history on page load
+        loadHistory();
+    </script>
+</body>
+</html>
