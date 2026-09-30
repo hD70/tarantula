@@ -1,5 +1,4 @@
-const db = require('../db/setup');
-const { v4: uuidv4 } = require('uuid');
+const { db } = require('../db/setup');
 
 class MemoryManager {
   constructor() {
@@ -26,7 +25,7 @@ class MemoryManager {
     return conversation;
   }
 
-  async saveMessage(sessionId, role, content) {
+  async saveMessage(sessionId, role, content, metadata = {}) {
     const conversation = await this.getOrCreateConversation(sessionId);
     const tokenCount = Math.ceil(content.length / 4);
     
@@ -41,7 +40,7 @@ class MemoryManager {
     this.shortTermCache.get(sessionId).push({ role, content });
   }
 
-  async getRecentContext(sessionId, maxTokens = this.maxContextTokens) {
+  async loadContext(sessionId, maxTokens = this.maxContextTokens) {
     const conversation = await this.getOrCreateConversation(sessionId);
     
     if (this.shortTermCache.has(sessionId)) {
@@ -88,4 +87,4 @@ class MemoryManager {
   }
 }
 
-module.exports = new MemoryManager();
+module.exports = MemoryManager;
