@@ -9,8 +9,8 @@ const { injectProfile } = require('./profile');
 const { judgeResponses } = require('./judge');
 const { synthesize } = require('./synthesizer');
 
-const OMNIROUTE_URL = process.env.OMNIROUTE_URL;
-const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY;
+const OMNIROUTE_URL = process.env.OMNIROUTE_URL || 'https://omniroute-production-7900.up.railway.app';
+const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || 'sk-6e958441448cf5b4-b2fd96-fcc53dd0';
 
 /**
  * DAILY Mode - Fast single response with profile injection
@@ -28,9 +28,9 @@ async function dailyMode(messages) {
 
   try {
     const response = await axios.post(
-      `${OMNIROUTE_URL}/query`,
+      `${OMNIROUTE_URL}/v1/chat/completions`,
       {
-        combo: "DAILY",
+        model: "DAILY",
         messages: profiledMessages
       },
       {
@@ -44,9 +44,9 @@ async function dailyMode(messages) {
 
     return {
       mode: 'daily',
-      response: response.data.response,
+      response: response.data.choices[0].message.content,
       model: response.data.model || 'DAILY',
-      latency: response.data.latency
+      latency: response.data.latency || 0
     };
   } catch (error) {
     throw new Error(`DAILY mode failed: ${error.message}`);
@@ -63,16 +63,16 @@ async function supremeMode(messages) {
 
   // Models to query in parallel (best performers from brain combo)
   const models = [
-    { combo: 'brain', priority: 1 },
-    { combo: 'fast', priority: 2 },
-    { combo: 'DAILY', priority: 2 }
+    { model: 'brain', priority: 1 },
+    { model: 'fast', priority: 2 },
+    { model: 'DAILY', priority: 2 }
   ];
 
   const startTime = Date.now();
 
   try {
     // Parallel queries with profile injection
-    const queryPromises = models.map(async ({ combo, priority }) => {
+    const queryPromises = models.map(async ({ model, priority }) => {
       try {
         const profiledMessages = [
           { role: 'system', content: profiled.system },
@@ -81,9 +81,9 @@ async function supremeMode(messages) {
         ];
 
         const response = await axios.post(
-          `${OMNIROUTE_URL}/query`,
+          `${OMNIROUTE_URL}/v1/chat/completions`,
           {
-            combo: combo,
+            model: model,
             messages: profiledMessages
           },
           {
@@ -96,13 +96,13 @@ async function supremeMode(messages) {
         );
 
         return {
-          model: response.data.model || combo,
-          response: response.data.response,
+          model: response.data.model || model,
+          response: response.data.choices[0].message.content,
           latency: response.data.latency || 0,
           priority
         };
       } catch (error) {
-        console.error(`Model ${combo} failed:`, error.message);
+        console.error(`Model ${model} failed:`, error.message);
         return null;
       }
     });
